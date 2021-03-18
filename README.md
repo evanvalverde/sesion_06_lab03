@@ -14,7 +14,7 @@ Crearemos un playbook.yml con las siguientes tareas:
 zone "dominio.local" IN {
     type master;
     file "named.dominio.local";
-}
+};
 ```
 
 - Tras eso crearemos un template del archivo /var/named/named.dominio.local:
