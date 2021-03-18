@@ -1,0 +1,72 @@
+---
+- name: "Laboratorio 3, sesión 6 del curso Ansible/AWX: Templates"
+  hosts: nodo01
+  vars:
+    nodo02: "nodo02"
+    servicios_nodo_02:
+      - nombre: "web01"
+        puerto: "80"
+      - nombre: "web02"
+        puerto: "81"
+      - nombre: "web03"
+        puerto: "8080"
+    ip_nodo_01: "{{ ansible_facts['default_ipv4']['address'] }}"
+    # Esto no funciona:
+    # ip_nodo_02: "{{ hostvars[nodo02]['default_ipv4']['address'] }}"
+    # "AnsibleUndefinedVariable: 
+    #  {{ hostvars['nodo02']['default_ipv4']['address'] }}: 
+    #  'ansible.vars.hostvars.HostVarsVars object' has no attribute 'default_ipv4'"}
+    ip_nodo_02: "192.168.50.235"
+    dominio_local: "dominio.local"
+    fichero_dominio_local: "/var/named/named.dominio.local"
+    fichero_salida: "/tmp/salida_sesion_06_lab03.txt"
+
+  tasks:
+    - name: "Configura dominio.local en /etc/named.conf"
+      blockinfile:
+        path: "/etc/named.conf"
+        marker: "// {mark} dominio.local"
+        block: |
+          zone "dominio.local" IN {
+            type master;
+            file "named.dominio.local";
+          };
+    
+    - name: "inserta {{ fichero_dominio_local }}"
+      template:
+        src: templates/named.dominio.local.j2
+        dest: "{{ fichero_dominio_local }}"
+        # loop: "{{ servicios_nodo_02 }}"
+      notify: "recarga named"
+
+    - meta: flush_handlers
+
+    - name: "Registra si la sintaxis de {{ fichero_dominio_local }} es correcta"
+      command: "named-checkzone {{ dominio_local }} {{ fichero_dominio_local }}"
+      register: salida_checkzone
+
+    - name: "Resuelve los nombres de los servicios"
+      command: "host {{ item['nombre'] }}.{{ dominio_local }}"
+      register: salida_host
+      loop: "{{ servicios_nodo_02 }}"
+
+    - name: "Manda el contenido del registro de salida de checkzone a {{ fichero_salida }}"
+      lineinfile:
+        path: "{{ fichero_salida }}"
+        create: yes
+        state: present
+        line: "Salida checkzone: {{ salida_checkzone.stdout_lines }}"
+
+    - name: "Manda el contenido del registro de resoluciones DNS a {{ fichero_salida }}"
+      lineinfile:
+        path: "{{ fichero_salida }}"
+        state: present
+        line: "Salida resolucion nombres: {{ item.stdout_lines }}"
+      loop: "{{ salida_host.results }}"
+
+  handlers:
+    - name: "recarga named"
+      service:
+        name: named
+        state: restarted
+...

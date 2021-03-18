@@ -1,0 +1,16 @@
+$TTL    1D
+@       IN      SOA     ns.dominio.local. root.dominio.local. (
+                            1       ; serial
+                            604800  ; refresh
+                            86400   ; retry
+                            2419200 ; expiration
+                            604800  ; TTL negative cache
+    );
+; Servidores de nombres
+                        IN      NS      ns.dominio.local.
+; Registros
+ns.dominio.local.       IN      A       {{ ip_nodo_01 }}
+
+{% for servicio in servicios_nodo_02 %}
+{{ servicio["nombre"] }}.dominio.local.    IN    A     {{ ip_nodo_02 }};{{ servicio["puerto"] }}
+{% endfor %}
